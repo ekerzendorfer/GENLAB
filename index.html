@@ -8,7 +8,6 @@
     <style>
         :root {
             --primary: #2c3e50;
-            --secondary: #34495e;
             --accent: #2980b9;
             --bg: #ecf0f1;
             --header-bg: #fff;
@@ -22,9 +21,18 @@
             height: 100vh; 
             background: var(--bg); 
             color: var(--primary);
+            overflow: hidden; /* Scrollen nur in den Bereichen erlaubt */
         }
 
-        /* --- HEADER --- */
+        /* Loading Overlay (Verschwindet wenn JS bereit ist) */
+        #loader {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: white; z-index: 9999;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.5rem; color: #7f8c8d;
+        }
+
+        /* HEADER */
         header {
             background: var(--header-bg);
             padding: 15px 20px;
@@ -33,27 +41,30 @@
             flex-shrink: 0;
             text-align: center;
         }
-        h1 { margin: 0; font-size: 1.5rem; color: var(--primary); letter-spacing: 1px; }
-        h4 { margin: 5px 0 0 0; font-size: 0.9rem; color: var(--secondary); font-weight: normal; font-style: italic; }
+        h1 { margin: 0; font-size: 1.5rem; color: var(--primary); }
+        h4 { margin: 5px 0 0 0; font-size: 0.9rem; color: #7f8c8d; font-weight: normal; font-style: italic; }
 
-        /* --- LAYOUT --- */
+        /* LAYOUT */
         .container {
             display: flex;
             flex-grow: 1;
-            overflow: hidden; 
+            overflow: hidden;
+            padding: 20px;
+            gap: 20px;
         }
 
-        /* SIDEBAR */
+        /* SIDEBAR (Desktop) */
         #sidebar { 
             width: 260px; 
             background: #fff; 
-            border-right: 1px solid #ddd; 
+            border-radius: 8px;
             overflow-y: auto; 
             padding: 15px;
             flex-shrink: 0;
             display: none; 
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
-        @media (min-width: 800px) { #sidebar { display: block; } }
+        @media (min-width: 900px) { #sidebar { display: block; } }
 
         .aa-card { 
             border: 1px solid #eee; 
@@ -64,16 +75,16 @@
             font-size: 0.85rem;
             transition: 0.2s;
         }
-        .aa-card:hover { border-color: var(--accent); transform: translateX(2px); }
+        .aa-card:hover { border-color: var(--accent); transform: translateX(3px); }
+        .aa-header { font-weight: bold; display: flex; justify-content: space-between; color: var(--accent); }
 
-        /* MAIN CONTENT */
+        /* MAIN */
         #main { 
             flex-grow: 1; 
-            padding: 20px; 
-            overflow-y: auto; 
             display: flex; 
             flex-direction: column; 
             gap: 15px;
+            overflow-y: auto;
         }
 
         .card { 
@@ -88,7 +99,7 @@
             width: 100%; 
             font-family: 'Courier New', monospace; 
             font-size: 1.4rem; 
-            padding: 8px; 
+            padding: 10px; 
             border: 2px solid #bdc3c7; 
             border-radius: 4px; 
             text-transform: uppercase; 
@@ -96,67 +107,51 @@
             box-sizing: border-box; 
         }
         .dna-input:focus { border-color: var(--accent); outline: none; }
-        .error-msg { color: #c0392b; font-size: 0.9rem; margin-top: 5px; height: 1.2em;}
-
+        
         /* CHEMIE FENSTER */
         .chem-window {
             width: 100%;
-            height: 400px; 
+            height: 400px; /* Mobilfreundlich */
             border: 1px solid #bdc3c7;
             border-radius: 4px;
-            overflow: auto; /* Scrollbars */
+            overflow: auto; /* Scrollbars erlaubt */
             background: #ffffff;
             position: relative;
-            margin-bottom: 10px;
-            /* Sanftes Scrollen für den Auto-Focus */
-            scroll-behavior: smooth;
+            margin-bottom: 15px;
+            scroll-behavior: smooth; /* Sanftes Scrollen beim Zentrieren */
         }
         
-        #chemCanvas { display: block; }
+        #chemCanvas { display: block; margin: 0 auto; }
 
         /* DATEN OUTPUT */
         .data-row { 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            margin-bottom: 8px; 
-            font-family: monospace; 
-            font-size: 0.9rem; 
+            display: flex; align-items: center; gap: 10px; margin-bottom: 8px; 
+            font-family: monospace; font-size: 0.9rem; 
         }
-        .label { font-weight: bold; min-width: 70px; color: #7f8c8d; }
+        .label { font-weight: bold; min-width: 80px; color: #7f8c8d; }
         .value { 
-            background: #f0f2f5; 
-            padding: 4px 8px; 
-            border-radius: 4px; 
-            color: #2c3e50; 
-            white-space: nowrap; 
-            overflow: hidden; 
-            text-overflow: ellipsis; 
-            max-width: 100%;
+            background: #f0f2f5; padding: 4px 8px; border-radius: 4px; 
+            color: #2c3e50; white-space: nowrap; overflow: hidden; 
+            text-overflow: ellipsis; flex-grow: 1;
         }
 
         /* BUTTONS */
-        .btn-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
-        button { 
-            padding: 8px 14px; 
-            border: none; 
-            border-radius: 5px; 
-            cursor: pointer; 
-            font-size: 0.9rem; 
-            display: inline-flex; 
-            align-items: center; 
-            gap: 5px; 
-            transition: 0.2s;
-            color: white;
-            background: var(--accent);
+        .btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+        button, .btn-link { 
+            padding: 8px 16px; border: none; border-radius: 5px; 
+            cursor: pointer; font-size: 0.9rem; display: inline-flex; 
+            align-items: center; gap: 5px; color: white; background: var(--accent);
+            text-decoration: none; transition: 0.2s;
         }
-        button:hover { filter: brightness(110%); }
+        button:hover, .btn-link:hover { opacity: 0.9; transform: translateY(-1px); }
         .btn-opt { background: #e67e22; }
-        .btn-link { background: #27ae60; text-decoration: none; }
-        
-    </script>
+        .btn-colab { background: #27ae60; }
+
+    </style>
 </head>
 <body>
+
+    <div id="loader">GenLab wird geladen...</div>
 
     <header>
         <h1>GENLAB - vom genetischen Code zum Peptid</h1>
@@ -165,24 +160,23 @@
 
     <div class="container">
         <div id="sidebar">
-            <h3 style="margin-top:0; color:var(--secondary)">Bausteine</h3>
-            <div id="aa-list">Lade...</div>
+            <h3 style="margin-top:0; color:#34495e">Aminosäuren</h3>
+            <div id="aa-list"></div>
         </div>
 
         <div id="main">
             
             <div class="card">
-                <h3 style="margin-top:0">1. Genetischer Code (DNA)</h3>
+                <h3 style="margin-top:0">1. Eingabe (DNA)</h3>
                 <input type="text" id="dnaInput" class="dna-input" placeholder="GCT AAA ..." autocomplete="off">
-                <div class="error-msg" id="statusMsg"></div>
-                <div style="font-size:0.8rem; color:#95a5a6">Erlaubt: A, C, G, T. Leertasten automatisch.</div>
+                <div id="statusMsg" style="color:#c0392b; margin-top:5px; height:1.2em; font-size:0.9rem;"></div>
             </div>
 
             <div class="card" style="flex-grow:1; display:flex; flex-direction:column;">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <h3 style="margin-top:0">2. Struktur & Daten</h3>
-                    <button class="btn-opt" onclick="forceOptimize()" title="Zeichnung neu berechnen und zentrieren">
-                        🪄 Optimieren & Zentrieren
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0">2. Struktur & Daten</h3>
+                    <button class="btn-opt" id="btnOptimize" title="Berechnet das Bild neu und zentriert es">
+                        🪄 Optimieren
                     </button>
                 </div>
 
@@ -192,14 +186,14 @@
 
                 <div class="data-row"><span class="label">3-Letter:</span> <span id="out3" class="value">-</span></div>
                 <div class="data-row"><span class="label">FASTA:</span> <span id="out1" class="value">-</span></div>
-                <div class="data-row"><span class="label">SMILES:</span> <span id="outSmiles" class="value" style="font-size:0.75rem">-</span></div>
+                <div class="data-row"><span class="label">SMILES:</span> <span id="outSmiles" class="value" style="font-size:0.8rem">-</span></div>
 
                 <div class="btn-group">
-                    <button onclick="copyToClip('out1')">📄 FASTA kopieren</button>
-                    <button onclick="copyToClip('outSmiles')">🧪 SMILES kopieren</button>
-                    <button onclick="copyImg()">📷 Bild kopieren</button>
+                    <button id="btnCopyFasta">📄 FASTA</button>
+                    <button id="btnCopySmiles">🧪 SMILES</button>
+                    <button id="btnCopyImg">📷 Bild</button>
                     <div style="flex-grow:1"></div>
-                    <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn-link" style="color:white; padding: 8px 14px; border-radius: 5px;">
+                    <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn-link btn-colab">
                         🚀 ColabFold ↗
                     </a>
                 </div>
@@ -208,6 +202,13 @@
     </div>
 
 <script>
+// Sicherheits-Start: Code läuft erst, wenn ALLES geladen ist
+document.addEventListener("DOMContentLoaded", function() {
+    
+    // Loader entfernen
+    const loader = document.getElementById('loader');
+    if(loader) loader.style.display = 'none';
+
     // --- DATEN ---
     const aaData = {
         'A': {n:'Alanin', c:['GCT','GCC','GCA','GCG'], s:'C'},
@@ -239,22 +240,18 @@
     let currentSmiles = "";
     let currentCount = 0;
 
-    // --- INIT ---
-    window.onload = function() {
-        const sb = document.getElementById('aa-list');
-        sb.innerHTML = "";
-        Object.keys(aaData).sort().forEach(k => {
-            if(k==='STOP') return;
-            sb.innerHTML += `
-                <div class="aa-card">
-                    <div class="aa-header"><span>${aaData[k].n}</span><span>${k}</span></div>
-                    <div style="color:#666">${aaData[k].c.join(', ')}</div>
-                </div>`;
-        });
-        resetCanvas();
-    };
+    // --- SETUP SIDEBAR ---
+    const sb = document.getElementById('aa-list');
+    Object.keys(aaData).sort().forEach(k => {
+        if(k==='STOP') return;
+        sb.innerHTML += `
+            <div class="aa-card">
+                <div class="aa-header"><span>${aaData[k].n}</span><span>${k}</span></div>
+                <div style="color:#666">${aaData[k].c.join(', ')}</div>
+            </div>`;
+    });
 
-    // --- LOGIC ---
+    // --- EVENT LISTENERS ---
     const dnaInput = document.getElementById('dnaInput');
     
     dnaInput.addEventListener('input', (e) => {
@@ -264,6 +261,15 @@
         processDNA(raw);
     });
 
+    document.getElementById('btnOptimize').addEventListener('click', () => {
+        if(currentSmiles) draw(currentSmiles, currentCount, true);
+    });
+
+    document.getElementById('btnCopyFasta').addEventListener('click', () => copyToClip('out1'));
+    document.getElementById('btnCopySmiles').addEventListener('click', () => copyToClip('outSmiles'));
+    document.getElementById('btnCopyImg').addEventListener('click', copyImg);
+
+    // --- LOGIC ---
     function processDNA(raw) {
         const triplets = raw.match(/.{1,3}/g) || [];
         let seq = [];
@@ -305,20 +311,21 @@
 
     // --- DRAWING ENGINE ---
     function draw(smiles, count, optimize) {
-        if(typeof SmilesDrawer === 'undefined') return;
+        if(typeof SmilesDrawer === 'undefined') {
+            alert("Fehler: Zeichenbibliothek nicht geladen.");
+            return;
+        }
 
         const cvs = document.getElementById('chemCanvas');
         const win = document.getElementById('chemWindow');
         
-        // GRÖSSENBERECHNUNG
-        // 1. Breite: Wachsend mit der Kette
+        // GRÖSSE:
+        // Breite wächst mit der Kette (60px pro AS, bei Optimize 80px)
         let pxPerResidue = optimize ? 80 : 60;
         let w = Math.max(600, count * pxPerResidue);
         
-        // 2. Höhe: Fest auf 600px.
-        // Das ist hoch genug für moderate Faltungen, aber klein genug, damit wir die Mitte finden.
-        // Das Sichtfenster ist 400px hoch.
-        let h = 600;
+        // Höhe: Wir geben intern Platz (800px), zeigen aber nur 400px
+        let h = 800;
 
         cvs.width = w;
         cvs.height = h;
@@ -330,7 +337,7 @@
             bondLength: optimize ? 25 : 18, 
             shortBondLength: 0.85,
             fontSize: optimize ? 12 : 10,
-            padding: 20,
+            padding: 30,
             experimentalSSSR: true,
             overlapResolutionIterations: optimize ? 10 : 1
         };
@@ -340,26 +347,20 @@
         SmilesDrawer.parse(smiles, function(tree) {
             drawer.draw(tree, 'chemCanvas', 'light', false);
             
-            // --- AUTO-CENTER LOGIC ---
-            // Wir scrollen das Fenster so, dass die vertikale Mitte des Canvas (300px)
-            // in der Mitte des Sichtfensters (200px) liegt.
-            // Ziel-Scroll-Position = (CanvasHöhe / 2) - (FensterHöhe / 2)
-            // = 300 - 200 = 100px.
-            
+            // AUTO-CENTER LOGIC
+            // Wir warten 50ms, bis das Bild gemalt ist, und scrollen dann zur vertikalen Mitte
             setTimeout(() => {
-                const scrollTopPos = (h / 2) - (win.clientHeight / 2);
-                win.scrollTop = scrollTopPos;
-                // Optional: Horizontal zum Anfang scrollen (oder auch Mitte)
-                // win.scrollLeft = 0; 
-            }, 50); // Kleiner Timeout für Browser-Rendering
-            
+                // (Canvas Höhe / 2) - (Sichtfenster Höhe / 2)
+                const targetScroll = (h / 2) - (win.clientHeight / 2);
+                win.scrollTop = targetScroll;
+                // Horizontal zum Anfang
+                win.scrollLeft = 0; 
+            }, 50);
+
+        }, function(err) {
+            console.log(err);
         });
     }
-
-    window.forceOptimize = function() {
-        if(!currentSmiles) return;
-        draw(currentSmiles, currentCount, true);
-    };
 
     function resetCanvas() {
         const cvs = document.getElementById('chemCanvas');
@@ -372,18 +373,22 @@
         currentSmiles = "";
     }
 
-    // --- TOOLS ---
-    window.copyToClip = (id) => {
+    function copyToClip(id) {
         let t = document.getElementById(id).innerText;
         if(t && t !== '-') navigator.clipboard.writeText(t).then(()=>alert("Kopiert!"));
-    };
-    window.copyImg = () => {
-        const cvs = document.getElementById('chemCanvas');
-        cvs.toBlob(b => {
+    }
+
+    function copyImg() {
+        document.getElementById('chemCanvas').toBlob(b => {
             try { navigator.clipboard.write([new ClipboardItem({"image/png":b})]); alert("Bild kopiert!"); }
-            catch(e) { alert("Browser verbietet Bild-Kopie."); }
+            catch(e) { alert("Browser-Sicherheit: Bitte Screenshot machen."); }
         });
-    };
+    }
+
+    // Init Reset
+    resetCanvas();
+
+}); // Ende DOMContentLoaded
 </script>
 </body>
 </html>
