@@ -56,13 +56,22 @@
             overflow-y: auto;
         }
 
-        /* Input Area */
         .input-section {
             background: white;
             padding: 20px;
             border-radius: 10px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.05);
             margin-bottom: 20px;
+            position: relative;
+        }
+
+        /* System Status Indikator */
+        #sysStatus {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 0.8rem;
+            color: #ccc;
         }
 
         .dna-input {
@@ -79,9 +88,6 @@
         .dna-input:focus { border-color: var(--accent-color); outline: none; }
         .dna-input.error { border-color: #e74c3c; background-color: #fdeaea; }
 
-        .hint { font-size: 0.9rem; color: #7f8c8d; margin-top: 5px; }
-
-        /* Visualization Area */
         .vis-section {
             background: white;
             padding: 20px;
@@ -93,11 +99,11 @@
             overflow: hidden; 
         }
 
-        /* Scrollable Container */
+        /* Das Anzeigefenster: Jetzt höher (600px) */
         .chem-scroll-container {
             overflow: auto; 
             width: 100%;
-            height: 600px; /* Deutlich höher für quadratische Ansicht */
+            height: 600px; 
             border: 1px solid #f0f0f0;
             border-radius: 5px;
             margin-bottom: 15px;
@@ -112,7 +118,7 @@
             margin: 20px; 
         }
 
-        /* Sequences */
+        /* Output Zeilen */
         .seq-row {
             display: flex;
             align-items: center;
@@ -156,10 +162,10 @@
             gap: 5px;
         }
         .btn:hover { background: #2980b9; }
-        .btn-copy { background: #27ae60; }
-        .btn-copy:hover { background: #219150; }
-        .btn-img { background: #8e44ad; }
-        .btn-img:hover { background: #732d91; }
+        .btn-green { background: #27ae60; }
+        .btn-green:hover { background: #219150; }
+        .btn-purple { background: #8e44ad; }
+        .btn-purple:hover { background: #732d91; }
 
     </style>
 </head>
@@ -167,21 +173,24 @@
 
     <div id="sidebar">
         <h2>Aminosäuren</h2>
-        <div id="aa-list">Lade Daten...</div>
+        <div id="aa-list">Lade...</div>
     </div>
 
     <div id="main">
         <div class="input-section">
+            <div id="sysStatus">Initialisiere...</div>
             <h3>Genetischer Code (DNA)</h3>
             <input type="text" id="dnaInput" class="dna-input" placeholder="ACG TCC ..." spellcheck="false" autocomplete="off">
-            <div class="hint">Gib Tripletts ein (A, C, G, T). Leertaste wird automatisch gesetzt.</div>
+            <div style="font-size: 0.9rem; color: #7f8c8d; margin-top: 5px;">
+                Gib Tripletts ein (A, C, G, T). Leertaste wird automatisch gesetzt.
+            </div>
             <div id="statusMsg" style="height: 20px; color: #e74c3c; font-weight: bold; margin-top: 5px;"></div>
         </div>
 
         <div class="vis-section">
             <h3>Polypeptid-Kette</h3>
             
-            <div class="chem-scroll-container" id="chemContainer">
+            <div class="chem-scroll-container">
                 <canvas id="chemCanvas"></canvas>
             </div>
 
@@ -199,10 +208,11 @@
             </div>
 
             <div class="action-area">
-                <button class="btn btn-copy" id="btnCopyFasta">FASTA kopieren</button>
-                <button class="btn btn-copy" id="btnCopySmiles">SMILES kopieren</button>
-                <button class="btn btn-img" id="btnCopyImg" title="Kopiert das Strukturbild in die Zwischenablage">📷 Bild kopieren</button>
-                <div style="flex-grow:1"></div> <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn">
+                <button class="btn btn-green" id="btnCopyFasta">FASTA kopieren</button>
+                <button class="btn btn-green" id="btnCopySmiles">SMILES kopieren</button>
+                <button class="btn btn-purple" id="btnCopyImg" title="Kopiert Bild in Zwischenablage">📷 Bild kopieren</button>
+                <div style="flex-grow:1"></div>
+                <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn">
                     ColabFold Notebook ↗
                 </a>
             </div>
@@ -210,9 +220,22 @@
     </div>
 
 <script>
-window.addEventListener('load', function() {
+// Hauptprogramm startet erst wenn Seite geladen ist
+window.onload = function() {
+    
+    // --- 1. SETUP & DATEN ---
+    const sysStatus = document.getElementById('sysStatus');
+    
+    // Check ob Bibliothek da ist
+    if (typeof SmilesDrawer === 'undefined') {
+        sysStatus.innerText = "Fehler: SmilesDrawer Lib nicht geladen!";
+        sysStatus.style.color = "red";
+        return;
+    } else {
+        sysStatus.innerText = "System: Bereit";
+        sysStatus.style.color = "green";
+    }
 
-    // 1. DATEN DEFINITION
     const aaData = {
         'A': { name: 'Alanin', code3: 'Ala', codons: ['GCT','GCC','GCA','GCG'], smiles: 'C' },
         'R': { name: 'Arginin', code3: 'Arg', codons: ['CGT','CGC','CGA','CGG','AGA','AGG'], smiles: 'CCCNC(=N)N' },
@@ -239,44 +262,36 @@ window.addEventListener('load', function() {
 
     const codonTable = {};
     for (let aa in aaData) {
-        aaData[aa].codons.forEach(codon => {
-            codonTable[codon] = aa;
-        });
+        aaData[aa].codons.forEach(codon => { codonTable[codon] = aa; });
     }
 
-    // 2. SIDEBAR
+    // --- 2. GUI ELEMENTE ---
     const sidebar = document.getElementById('aa-list');
-    sidebar.innerHTML = '';
+    const dnaInput = document.getElementById('dnaInput');
+    const statusMsg = document.getElementById('statusMsg');
+    const chemCanvas = document.getElementById('chemCanvas');
     
+    // Output Felder
+    const seq3 = document.getElementById('seq3');
+    const seq1 = document.getElementById('seq1');
+    const seqSmiles = document.getElementById('seqSmiles');
+
+    // Sidebar befüllen
+    sidebar.innerHTML = '';
     Object.keys(aaData).sort().forEach(key => {
         if(key === 'STOP') return;
         const data = aaData[key];
         const card = document.createElement('div');
         card.className = 'aa-card';
         card.innerHTML = `
-            <div class="aa-header">
-                <span>${data.name}</span>
-                <span>${key} / ${data.code3}</span>
-            </div>
+            <div class="aa-header"><span>${data.name}</span><span>${key} / ${data.code3}</span></div>
             <div class="aa-codons">${data.codons.join(', ')}</div>
         `;
         sidebar.appendChild(card);
     });
 
-    // 3. ELEMENTE
-    const dnaInput = document.getElementById('dnaInput');
-    const statusMsg = document.getElementById('statusMsg');
-    const chemCanvas = document.getElementById('chemCanvas');
-    const seq3 = document.getElementById('seq3');
-    const seq1 = document.getElementById('seq1');
-    const seqSmiles = document.getElementById('seqSmiles');
-    
-    // Buttons
-    const btnCopyFasta = document.getElementById('btnCopyFasta');
-    const btnCopySmiles = document.getElementById('btnCopySmiles');
-    const btnCopyImg = document.getElementById('btnCopyImg');
+    // --- 3. LOGIK ---
 
-    // 4. LOGIK
     dnaInput.addEventListener('input', (e) => {
         let raw = e.target.value.toUpperCase().replace(/[^ACGT]/g, '');
         let formatted = '';
@@ -284,36 +299,30 @@ window.addEventListener('load', function() {
             if (i > 0 && i % 3 === 0) formatted += ' ';
             formatted += raw[i];
         }
-        if (dnaInput.value !== formatted) {
-           dnaInput.value = formatted;
-        }
+        if (dnaInput.value !== formatted) dnaInput.value = formatted;
+        
         translateAndDraw(raw);
     });
 
-    // Button Handler
-    btnCopyFasta.addEventListener('click', () => {
-        copyToClipboard(seq1.innerText, "FASTA kopiert!");
-    });
+    // Buttons
+    document.getElementById('btnCopyFasta').onclick = () => copyText(seq1.innerText, "FASTA");
+    document.getElementById('btnCopySmiles').onclick = () => copyText(seqSmiles.innerText, "SMILES");
     
-    btnCopySmiles.addEventListener('click', () => {
-        copyToClipboard(seqSmiles.innerText, "SMILES kopiert!");
-    });
-
-    btnCopyImg.addEventListener('click', () => {
+    document.getElementById('btnCopyImg').onclick = function() {
         chemCanvas.toBlob(function(blob) {
             try {
                 const item = new ClipboardItem({ "image/png": blob });
                 navigator.clipboard.write([item]);
-                alert("Bild in die Zwischenablage kopiert! (Strg+V zum Einfügen)");
+                alert("Bild kopiert!");
             } catch (err) {
-                alert("Konnte Bild nicht kopieren. (Browser-Sicherheitseinstellungen?)");
+                alert("Browser-Sicherheit verbietet Bild-Kopie bei lokaler Datei. Bitte Screenshot nutzen.");
             }
         });
-    });
+    };
 
-    function copyToClipboard(text, msg) {
-        if(text === '-' || text === '') return;
-        navigator.clipboard.writeText(text).then(() => alert(msg));
+    function copyText(txt, name) {
+        if(!txt || txt === '-') return;
+        navigator.clipboard.writeText(txt).then(() => alert(name + " kopiert!"));
     }
 
     function translateAndDraw(dnaSequence) {
@@ -328,7 +337,7 @@ window.addEventListener('load', function() {
             if (t.length < 3) continue;
             const aaCode = codonTable[t];
             if (!aaCode) {
-                statusMsg.innerText = `Ungültiges Codon: ${t}`;
+                statusMsg.innerText = `Unbekannt: ${t}`;
                 dnaInput.classList.add('error');
                 continue;
             }
@@ -337,21 +346,22 @@ window.addEventListener('load', function() {
             aa3List.push(aaData[aaCode].code3);
         }
 
+        // Text Updates
         seq3.innerText = aa3List.join(' - ');
         seq1.innerText = aaSequence.join('');
-
+        
         if (aaSequence.length > 0) {
             try {
-                const peptideSmiles = generatePeptideSmiles(aaSequence);
-                seqSmiles.innerText = peptideSmiles; // SMILES anzeigen
-                drawStructure(peptideSmiles, aaSequence.length);
+                const smiles = generatePeptideSmiles(aaSequence);
+                seqSmiles.innerText = smiles;
+                drawOnCanvas(smiles, aaSequence.length);
             } catch (e) {
-                console.error("Zeichenfehler:", e);
-                resetCanvas();
+                console.error(e);
+                statusMsg.innerText = "Fehler beim Zeichnen.";
             }
         } else {
             seqSmiles.innerText = "-";
-            resetCanvas();
+            clearCanvas();
         }
     }
 
@@ -359,72 +369,58 @@ window.addEventListener('load', function() {
         let smiles = "";
         sequence.forEach((aa) => {
             let fragment = "";
-            if (aa === 'P') {
-                fragment = "N1[C@@H](CCC1)C(=O)";
-            } else if (aa === 'G') {
-                fragment = "NCC(=O)";
-            } else {
-                let rGroup = aaData[aa].smiles;
-                fragment = `N[C@@H](${rGroup})C(=O)`;
-            }
+            if (aa === 'P') fragment = "N1[C@@H](CCC1)C(=O)";
+            else if (aa === 'G') fragment = "NCC(=O)";
+            else fragment = `N[C@@H](${aaData[aa].smiles})C(=O)`;
             smiles += fragment;
         });
         smiles += "O";
         return smiles;
     }
 
-    function drawStructure(smiles, residueCount) {
-        if (typeof SmilesDrawer === 'undefined') return;
+    function drawOnCanvas(smiles, count) {
+        // --- GRÖSSENBERECHNUNG (Anti-Zoom) ---
+        // Breite: Genug Platz pro AS (80px)
+        let w = Math.max(800, count * 80);
+        // Höhe: Riesig (2500px), damit nichts gestaucht wird
+        // Das Sichtfenster ist per CSS auf 600px begrenzt (Scrollbar)
+        let h = 2500; 
 
-        // --- OPTIMIERTE GRÖSSENBERECHNUNG ---
-        
-        // Canvas Breite: Wir geben sehr viel Platz (80px pro AS), damit es horizontal nicht staucht.
-        const widthPerResidue = 80; 
-        let calcWidth = Math.max(800, residueCount * widthPerResidue);
-
-        // Canvas Höhe: MASSIV erhöhen.
-        // Wenn das Molekül faltet, braucht es Platz nach unten.
-        // Das Fenster ist nur 600px hoch (CSS), aber der interne Canvas ist 2000px.
-        // Dadurch muss SmilesDrawer nicht verkleinern, um alles unterzubringen.
-        let calcHeight = Math.max(2000, residueCount * 50);
-
-        chemCanvas.width = calcWidth;
-        chemCanvas.height = calcHeight;
+        chemCanvas.width = w;
+        chemCanvas.height = h;
 
         let options = {
-            bondThickness: 0.8,
-            bondLength: 22,    // Leicht erhöht für weniger Überlagerung
+            bondThickness: 1.0,
+            bondLength: 22,    // Optimierte Länge
             shortBondLength: 0.85,
-            fontSize: 9,       
+            fontSize: 10,       
             backgroundColor: 'transparent',
-            padding: 30,
-            experimentalSSSR: true,
-            width: calcWidth,
-            height: calcHeight
+            padding: 40,
+            width: w,
+            height: h,
+            experimentalSSSR: true
         };
 
         let drawer = new SmilesDrawer.Drawer(options);
         
         SmilesDrawer.parse(smiles, function(tree) {
             drawer.draw(tree, 'chemCanvas', 'light', false);
-        }, function(err) {
-            console.log(err);
         });
     }
 
-    function resetCanvas() {
+    function clearCanvas() {
         const ctx = chemCanvas.getContext('2d');
         chemCanvas.width = 800;
         chemCanvas.height = 600;
         ctx.font = "16px Arial";
-        ctx.fillStyle = "#ccc";
+        ctx.fillStyle = "#aaa";
         ctx.clearRect(0,0,800,600);
-        ctx.fillText("Warte auf DNA-Eingabe...", 20, 300);
+        ctx.fillText("Warte auf Eingabe...", 30, 300);
     }
 
-    resetCanvas();
-
-});
+    // Start
+    clearCanvas();
+};
 </script>
 </body>
 </html>
