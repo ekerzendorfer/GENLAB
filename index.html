@@ -21,10 +21,10 @@
             height: 100vh; 
             background: var(--bg); 
             color: var(--primary);
-            overflow: hidden; /* Scrollen nur in den Bereichen erlaubt */
+            overflow: hidden; 
         }
 
-        /* Loading Overlay (Verschwindet wenn JS bereit ist) */
+        /* Loader */
         #loader {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: white; z-index: 9999;
@@ -108,20 +108,22 @@
         }
         .dna-input:focus { border-color: var(--accent); outline: none; }
         
-        /* CHEMIE FENSTER */
+        /* CHEMIE FENSTER - QUADRATISCHER */
         .chem-window {
             width: 100%;
-            height: 400px; /* Mobilfreundlich */
+            height: 500px; /* <--- Hier die neue Höhe (Quadratisch-ish) */
             border: 1px solid #bdc3c7;
             border-radius: 4px;
-            overflow: auto; /* Scrollbars erlaubt */
+            overflow-x: auto; /* Nur horizontal scrollen */
+            overflow-y: hidden; /* Vertikal fixiert */
             background: #ffffff;
             position: relative;
             margin-bottom: 15px;
-            scroll-behavior: smooth; /* Sanftes Scrollen beim Zentrieren */
+            display: flex;       /* Hilft beim Zentrieren */
+            align-items: center; /* Vertikal zentrieren */
         }
         
-        #chemCanvas { display: block; margin: 0 auto; }
+        #chemCanvas { display: block; }
 
         /* DATEN OUTPUT */
         .data-row { 
@@ -151,7 +153,7 @@
 </head>
 <body>
 
-    <div id="loader">GenLab wird geladen...</div>
+    <div id="loader">Lade GenLab...</div>
 
     <header>
         <h1>GENLAB - vom genetischen Code zum Peptid</h1>
@@ -175,7 +177,7 @@
             <div class="card" style="flex-grow:1; display:flex; flex-direction:column;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h3 style="margin:0">2. Struktur & Daten</h3>
-                    <button class="btn-opt" id="btnOptimize" title="Berechnet das Bild neu und zentriert es">
+                    <button class="btn-opt" id="btnOptimize" title="Zeichnung entwirren">
                         🪄 Optimieren
                     </button>
                 </div>
@@ -202,10 +204,9 @@
     </div>
 
 <script>
-// Sicherheits-Start: Code läuft erst, wenn ALLES geladen ist
 document.addEventListener("DOMContentLoaded", function() {
     
-    // Loader entfernen
+    // Loader weg
     const loader = document.getElementById('loader');
     if(loader) loader.style.display = 'none';
 
@@ -213,7 +214,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const aaData = {
         'A': {n:'Alanin', c:['GCT','GCC','GCA','GCG'], s:'C'},
         'R': {n:'Arginin', c:['CGT','CGC','CGA','CGG','AGA','AGG'], s:'CCCNC(=N)N'},
-        'N': {n:'Asparagin', c:['AAT','AAC'], s:'CC(=O)N'},
+        'N': {n:'Asn', c:['AAT','AAC'], s:'CC(=O)N'},
         'D': {n:'Asparaginsäure', c:['GAT','GAC'], s:'CC(=O)O'},
         'C': {n:'Cystein', c:['TGT','TGC'], s:'CS'},
         'Q': {n:'Glutamin', c:['CAA','CAG'], s:'CCC(=O)N'},
@@ -320,12 +321,15 @@ document.addEventListener("DOMContentLoaded", function() {
         const win = document.getElementById('chemWindow');
         
         // GRÖSSE:
-        // Breite wächst mit der Kette (60px pro AS, bei Optimize 80px)
+        // Breite wächst mit der Kette
         let pxPerResidue = optimize ? 80 : 60;
         let w = Math.max(600, count * pxPerResidue);
         
-        // Höhe: Wir geben intern Platz (800px), zeigen aber nur 400px
-        let h = 800;
+        // HÖHE: FIXIERT AUF SICHTFENSTERGRÖSSE
+        // Wir setzen die interne Höhe exakt gleich der CSS-Höhe (500px).
+        // Dadurch zentriert SmilesDrawer das Molekül automatisch in diesem Bereich.
+        // Keine Scroll-Experimente mehr nötig.
+        let h = 500; 
 
         cvs.width = w;
         cvs.height = h;
@@ -334,29 +338,21 @@ document.addEventListener("DOMContentLoaded", function() {
             width: w,
             height: h,
             bondThickness: 1.0,
-            bondLength: optimize ? 25 : 18, 
+            bondLength: optimize ? 22 : 18, 
             shortBondLength: 0.85,
-            fontSize: optimize ? 12 : 10,
-            padding: 30,
+            fontSize: optimize ? 11 : 10,
+            padding: 20,
             experimentalSSSR: true,
-            overlapResolutionIterations: optimize ? 10 : 1
+            overlapResolutionIterations: optimize ? 15 : 1
         };
 
         let drawer = new SmilesDrawer.Drawer(options);
         
         SmilesDrawer.parse(smiles, function(tree) {
             drawer.draw(tree, 'chemCanvas', 'light', false);
-            
-            // AUTO-CENTER LOGIC
-            // Wir warten 50ms, bis das Bild gemalt ist, und scrollen dann zur vertikalen Mitte
-            setTimeout(() => {
-                // (Canvas Höhe / 2) - (Sichtfenster Höhe / 2)
-                const targetScroll = (h / 2) - (win.clientHeight / 2);
-                win.scrollTop = targetScroll;
-                // Horizontal zum Anfang
-                win.scrollLeft = 0; 
-            }, 50);
-
+            // Optional: Horizontal zum Anfang scrollen (linker Rand)
+            // oder leicht einrücken, damit der Start sichtbar ist.
+            win.scrollLeft = 0; 
         }, function(err) {
             console.log(err);
         });
@@ -364,11 +360,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function resetCanvas() {
         const cvs = document.getElementById('chemCanvas');
-        cvs.width = 600; cvs.height = 400;
+        cvs.width = 600; cvs.height = 500;
         const ctx = cvs.getContext('2d');
         ctx.font = "16px sans-serif";
         ctx.fillStyle = "#bdc3c7";
-        ctx.fillText("Bitte DNA eingeben...", 20, 200);
+        ctx.fillText("Bitte DNA eingeben...", 20, 250);
         document.getElementById('outSmiles').innerText = "-";
         currentSmiles = "";
     }
@@ -388,7 +384,7 @@ document.addEventListener("DOMContentLoaded", function() {
     // Init Reset
     resetCanvas();
 
-}); // Ende DOMContentLoaded
+});
 </script>
 </body>
 </html>
