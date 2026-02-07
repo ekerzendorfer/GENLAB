@@ -244,20 +244,22 @@
     const chemCanvas = document.getElementById('chemCanvas');
     const chemContainer = document.getElementById('chemContainer');
     
-    // SmilesDrawer Optionen
+    // SmilesDrawer Optionen (ANGEPASST FÜR MEHR PLATZ)
     const drawerOptions = {
-        width: 1000, // Platzhalter, wird dynamisch angepasst
-        height: 250,
-        bondThickness: 1.0,
+        width: 1000, // Platzhalter
+        height: 450, // <--- ÄNDERUNG: Viel mehr Höhe (war 250)
+        bondThickness: 0.8, // <--- ÄNDERUNG: Etwas dünnere Linien für mehr Klarheit
         scale: 1.0,
-        bondLength: 15,
+        bondLength: 35, // <--- ÄNDERUNG: Bindungen mehr als verdoppelt (war 15)! Das zieht es auseinander.
         shortBondLength: 0.85,
-        fontSize: 10, // Textgröße
+        fontSize: 12, // <--- ÄNDERUNG: Schrift etwas größer
         backgroundColor: 'transparent',
-        padding: 10,
+        padding: 20, // <--- ÄNDERUNG: Mehr Abstand zum Rand
+        experimentalSSSR: true // Hilft manchmal bei der Ring-Darstellung
     };
     
-    const smilesDrawer = new SmilesDrawer.Drawer(drawerOptions);
+    // Globale Instanz
+    let smilesDrawer = new SmilesDrawer.Drawer(drawerOptions);
 
     // Sidebar füllen
     const sidebar = document.getElementById('aa-list');
@@ -276,26 +278,26 @@
         sidebar.appendChild(card);
     });
 
+    // Colab Link Update (Stabilerer Link)
+    const colabBtn = document.querySelector('a[href*="colab.research.google.com"]');
+    if(colabBtn) {
+        // <--- ÄNDERUNG: Neuer, stabilerer Link zum Standard AlphaFold2/ColabFold Notebook
+        colabBtn.href = "https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb";
+    }
+
+
     // --- LOGIK ---
 
     dnaInput.addEventListener('input', (e) => {
-        // 1. Input säubern: Nur ACGT erlauben
         let raw = e.target.value.toUpperCase().replace(/[^ACGT]/g, '');
-        
-        // 2. Formatieren in 3er Blöcke
         let formatted = '';
         for (let i = 0; i < raw.length; i++) {
             if (i > 0 && i % 3 === 0) formatted += ' ';
             formatted += raw[i];
         }
-        
-        // Cursor Position fixen (einfacher Hack: immer ans Ende setzen oder so lassen)
-        // Um Flackern zu vermeiden setzen wir den Wert nur neu wenn nötig
         if (dnaInput.value !== formatted) {
            dnaInput.value = formatted;
         }
-
-        // 3. Übersetzen
         translateAndDraw(raw);
     });
 
@@ -303,99 +305,72 @@
         const triplets = dnaSequence.match(/.{1,3}/g) || [];
         let aaSequence = [];
         let aa3List = [];
-        let stopFound = false;
-
+        
         statusMsg.innerText = "";
         dnaInput.classList.remove('error');
 
-        // Translation Loop
         for (let t of triplets) {
-            if (t.length < 3) continue; // Unvollständige ignorieren
-            
+            if (t.length < 3) continue;
             const aaCode = codonTable[t];
             if (!aaCode) {
                 statusMsg.innerText = `Ungültiges Codon: ${t}`;
                 dnaInput.classList.add('error');
                 continue;
             }
-
-            if (aaCode === 'STOP') {
-                stopFound = true;
-                break; // Translation endet hier
-            }
-
+            if (aaCode === 'STOP') break;
             aaSequence.push(aaCode);
             aa3List.push(aaData[aaCode].code3);
         }
 
-        // Output Text Update
         document.getElementById('seq3').innerText = aa3List.join(' - ');
         document.getElementById('seq1').innerText = aaSequence.join('');
 
-        // SMILES Generierung für das Peptid
         if (aaSequence.length > 0) {
             const peptideSmiles = generatePeptideSmiles(aaSequence);
             drawStructure(peptideSmiles, aaSequence.length);
         } else {
-            // Canvas leeren
             const ctx = chemCanvas.getContext('2d');
             ctx.clearRect(0, 0, chemCanvas.width, chemCanvas.height);
+            chemCanvas.height = 250; // Reset Höhe wenn leer
         }
     }
 
     function generatePeptideSmiles(sequence) {
-        // Wir bauen den SMILES String manuell.
-        // Grundstruktur Peptidbindung: N ... C(=O)
-        // Aminosäuren werden linear verknüpft.
-        // Glycin (G) ist einfach N-C-C(=O)
-        // Alanin (A) ist N-C(Methyl)-C(=O)
-        // Generelles Muster für L-Aminosäuren: N[C@@H](R)C(=O)
-        
         let smiles = "";
-
         sequence.forEach((aa, index) => {
             let fragment = "";
-            
             if (aa === 'P') {
-                // Prolin Ausnahme: Der Stickstoff ist Teil des Rings
-                // Vereinfachtes Prolin Fragment für lineare Verkettung in SMILES:
-                // N1[C@@H](CCC1)C(=O) 
-                // Das verbindet sich mit dem vorherigen C(=O).
                 fragment = "N1[C@@H](CCC1)C(=O)";
             } else if (aa === 'G') {
-                // Glycin hat kein Chiralitätszentrum
                 fragment = "NCC(=O)";
             } else {
-                // Standard: N - C_alpha(mit R) - Carbonyl
                 let rGroup = aaData[aa].smiles;
                 fragment = `N[C@@H](${rGroup})C(=O)`;
             }
-
             smiles += fragment;
         });
-
-        // Am Ende ein OH an das letzte Carbonyl hängen für den C-Terminus
         smiles += "O";
-
         return smiles;
     }
 
     function drawStructure(smiles, residueCount) {
-        // Dynamische Breite berechnen: ca 100px pro Aminosäure
-        // Dies sorgt für das horizontale Scrollen
-        const newWidth = Math.max(800, residueCount * 120);
+        // <--- ÄNDERUNG: Breitenberechnung drastisch erhöht
+        // Wir geben jetzt 250px Breite pro Aminosäure statt 120px.
+        const newWidth = Math.max(1000, residueCount * 250);
+        const newHeight = 450; // <--- ÄNDERUNG: Feste, größere Höhe
+
         chemCanvas.width = newWidth;
-        chemCanvas.height = 250; // Fest
+        chemCanvas.height = newHeight;
         
-        // SmilesDrawer muss wissen, dass sich die Canvas-Größe geändert hat? 
-        // Wir erstellen einfach eine neue Instanz oder zeichnen neu.
-        // WICHTIG: SmilesDrawer zeichnet asynchron.
+        // Wir müssen dem Drawer die neuen Dimensionen mitteilen
+        const currentOptions = { ...drawerOptions, width: newWidth, height: newHeight };
         
+        // <--- WICHTIG: Wir erstellen einen neuen Drawer für jeden neuen Zeichenvorgang,
+        // um sicherzustellen, dass die neuen Optionen übernommen werden.
+        smilesDrawer = new SmilesDrawer.Drawer(currentOptions);
+
         SmilesDrawer.parse(smiles, function(tree) {
-            // Wir müssen die 'theme' options anpassen für den neuen Canvas width
-            const currentOptions = { ...drawerOptions, width: newWidth };
-            const drawer = new SmilesDrawer.Drawer(currentOptions);
-            drawer.draw(tree, 'chemCanvas', 'light', false);
+            smilesDrawer.draw(tree, 'chemCanvas', 'light', false);
         }, function(err) {
             console.log(err);
         });
@@ -408,8 +383,8 @@
         });
     }
 
-    // Initiale leere Zeichnung
     const ctx = chemCanvas.getContext('2d');
+    chemCanvas.height = 250; // Initiale Höhe kleiner lassen
     ctx.font = "20px Arial";
     ctx.fillStyle = "#ccc";
     ctx.fillText("Warte auf DNA-Eingabe...", 20, 130);
