@@ -108,22 +108,22 @@
         }
         .dna-input:focus { border-color: var(--accent); outline: none; }
         
-        /* CHEMIE FENSTER - QUADRATISCHER */
+        /* CHEMIE FENSTER */
         .chem-window {
             width: 100%;
-            height: 500px; /* <--- Hier die neue Höhe (Quadratisch-ish) */
+            height: 500px; 
             border: 1px solid #bdc3c7;
             border-radius: 4px;
-            overflow-x: auto; /* Nur horizontal scrollen */
-            overflow-y: hidden; /* Vertikal fixiert */
+            overflow-x: auto; 
+            overflow-y: hidden; 
             background: #ffffff;
             position: relative;
             margin-bottom: 15px;
-            display: flex;       /* Hilft beim Zentrieren */
+            display: flex;       
             align-items: center; /* Vertikal zentrieren */
         }
         
-        #chemCanvas { display: block; }
+        #chemCanvas { display: block; background-color: #ffffff; }
 
         /* DATEN OUTPUT */
         .data-row { 
@@ -177,8 +177,8 @@
             <div class="card" style="flex-grow:1; display:flex; flex-direction:column;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h3 style="margin:0">2. Struktur & Daten</h3>
-                    <button class="btn-opt" id="btnOptimize" title="Zeichnung entwirren">
-                        🪄 Optimieren
+                    <button class="btn-opt" id="btnOptimize" title="Zeichnung vergrößern und entwirren">
+                        🪄 Optimieren & Zoom
                     </button>
                 </div>
 
@@ -193,7 +193,7 @@
                 <div class="btn-group">
                     <button id="btnCopyFasta">📄 FASTA</button>
                     <button id="btnCopySmiles">🧪 SMILES</button>
-                    <button id="btnCopyImg">📷 Bild</button>
+                    <button id="btnCopyImg" title="Kopiert Bild mit weißem Hintergrund">📷 Bild</button>
                     <div style="flex-grow:1"></div>
                     <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn-link btn-colab">
                         🚀 ColabFold ↗
@@ -214,7 +214,7 @@ document.addEventListener("DOMContentLoaded", function() {
     const aaData = {
         'A': {n:'Alanin', c:['GCT','GCC','GCA','GCG'], s:'C'},
         'R': {n:'Arginin', c:['CGT','CGC','CGA','CGG','AGA','AGG'], s:'CCCNC(=N)N'},
-        'N': {n:'Asn', c:['AAT','AAC'], s:'CC(=O)N'},
+        'N': {n:'Asparagin', c:['AAT','AAC'], s:'CC(=O)N'},
         'D': {n:'Asparaginsäure', c:['GAT','GAC'], s:'CC(=O)O'},
         'C': {n:'Cystein', c:['TGT','TGC'], s:'CS'},
         'Q': {n:'Glutamin', c:['CAA','CAG'], s:'CCC(=O)N'},
@@ -320,15 +320,10 @@ document.addEventListener("DOMContentLoaded", function() {
         const cvs = document.getElementById('chemCanvas');
         const win = document.getElementById('chemWindow');
         
-        // GRÖSSE:
-        // Breite wächst mit der Kette
-        let pxPerResidue = optimize ? 80 : 60;
+        // GRÖSSE & ZOOM:
+        // Optimize: Wir geben deutlich mehr Breite pro AS (100px) und machen alles größer
+        let pxPerResidue = optimize ? 100 : 60;
         let w = Math.max(600, count * pxPerResidue);
-        
-        // HÖHE: FIXIERT AUF SICHTFENSTERGRÖSSE
-        // Wir setzen die interne Höhe exakt gleich der CSS-Höhe (500px).
-        // Dadurch zentriert SmilesDrawer das Molekül automatisch in diesem Bereich.
-        // Keine Scroll-Experimente mehr nötig.
         let h = 500; 
 
         cvs.width = w;
@@ -337,10 +332,11 @@ document.addEventListener("DOMContentLoaded", function() {
         let options = {
             width: w,
             height: h,
-            bondThickness: 1.0,
-            bondLength: optimize ? 22 : 18, 
+            // ZOOM EFFEKT: Wir erhöhen BondLength und FontSize im Optimize Modus
+            bondThickness: optimize ? 1.5 : 1.0,
+            bondLength: optimize ? 30 : 18,     // Länger = "Größer" gezoomt
             shortBondLength: 0.85,
-            fontSize: optimize ? 11 : 10,
+            fontSize: optimize ? 14 : 10,       // Größere Schrift
             padding: 20,
             experimentalSSSR: true,
             overlapResolutionIterations: optimize ? 15 : 1
@@ -350,8 +346,7 @@ document.addEventListener("DOMContentLoaded", function() {
         
         SmilesDrawer.parse(smiles, function(tree) {
             drawer.draw(tree, 'chemCanvas', 'light', false);
-            // Optional: Horizontal zum Anfang scrollen (linker Rand)
-            // oder leicht einrücken, damit der Start sichtbar ist.
+            // Horizontal zum Anfang scrollen
             win.scrollLeft = 0; 
         }, function(err) {
             console.log(err);
@@ -375,8 +370,27 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function copyImg() {
-        document.getElementById('chemCanvas').toBlob(b => {
-            try { navigator.clipboard.write([new ClipboardItem({"image/png":b})]); alert("Bild kopiert!"); }
+        const sourceCanvas = document.getElementById('chemCanvas');
+        
+        // 1. Temporären Canvas erstellen
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = sourceCanvas.width;
+        tempCanvas.height = sourceCanvas.height;
+        const ctx = tempCanvas.getContext('2d');
+
+        // 2. Weiß füllen (Hintergrund)
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+
+        // 3. Originalbild darüber malen
+        ctx.drawImage(sourceCanvas, 0, 0);
+
+        // 4. Kopieren
+        tempCanvas.toBlob(b => {
+            try { 
+                navigator.clipboard.write([new ClipboardItem({"image/png":b})]); 
+                alert("Bild (weißer Hintergrund) kopiert!"); 
+            }
             catch(e) { alert("Browser-Sicherheit: Bitte Screenshot machen."); }
         });
     }
