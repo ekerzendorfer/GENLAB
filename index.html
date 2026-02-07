@@ -3,424 +3,272 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DNA Translation Labor</title>
-    <script src="https://unpkg.com/smiles-drawer@2.0.1/dist/smiles-drawer.min.js"></script>
+    <title>DNA Translation Labor (Diagnose Modus)</title>
+    
     <style>
-        :root {
-            --primary-color: #2c3e50;
-            --accent-color: #3498db;
-            --bg-color: #f4f7f6;
-            --sidebar-width: 280px;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            background-color: var(--bg-color);
-            overflow: hidden;
-        }
-
-        /* --- SIDEBAR --- */
-        #sidebar {
-            width: var(--sidebar-width);
-            background: white;
-            border-right: 1px solid #ddd;
-            overflow-y: auto;
-            padding: 20px;
-            box-shadow: 2px 0 5px rgba(0,0,0,0.05);
-            flex-shrink: 0;
-        }
-
-        h2 { font-size: 1.2rem; color: var(--primary-color); margin-top: 0; }
+        :root { --primary: #2c3e50; --accent: #3498db; --bg: #f4f7f6; }
+        body { font-family: sans-serif; margin: 0; display: flex; height: 100vh; background: var(--bg); overflow: hidden; }
         
-        .aa-card {
-            border: 1px solid #eee;
-            border-radius: 8px;
-            padding: 10px;
-            margin-bottom: 15px;
-            background: #fff;
-            transition: transform 0.2s;
-        }
-        .aa-card:hover { transform: scale(1.02); border-color: var(--accent-color); }
-        .aa-header { display: flex; justify-content: space-between; align-items: baseline; font-weight: bold; }
-        .aa-codons { font-size: 0.8rem; color: #666; margin-top: 5px; word-break: break-all;}
-
-        /* --- MAIN CONTENT --- */
-        #main {
-            flex-grow: 1;
-            padding: 30px;
-            display: flex;
-            flex-direction: column;
-            overflow-y: auto;
-        }
-
-        .input-section {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 20px;
-            position: relative;
-        }
-
-        /* System Status Indikator */
-        #sysStatus {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 0.8rem;
-            color: #ccc;
-        }
-
-        .dna-input {
-            width: 100%;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 2rem;
-            letter-spacing: 2px;
-            padding: 10px;
-            border: 2px solid #ddd;
-            border-radius: 5px;
-            text-transform: uppercase;
-            color: var(--primary-color);
-        }
-        .dna-input:focus { border-color: var(--accent-color); outline: none; }
-        .dna-input.error { border-color: #e74c3c; background-color: #fdeaea; }
-
-        .vis-section {
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden; 
-        }
-
-        /* Das Anzeigefenster: Jetzt höher (600px) */
-        .chem-scroll-container {
-            overflow: auto; 
-            width: 100%;
-            height: 600px; 
-            border: 1px solid #f0f0f0;
-            border-radius: 5px;
-            margin-bottom: 15px;
-            background: white;
-            scrollbar-width: thin;
-            scrollbar-color: var(--accent-color) #f0f0f0;
+        /* Sidebar */
+        #sidebar { width: 280px; background: white; border-right: 1px solid #ddd; overflow-y: auto; padding: 20px; flex-shrink: 0; }
+        .aa-card { border: 1px solid #eee; padding: 10px; margin-bottom: 10px; border-radius: 5px; font-size: 0.9rem; }
+        .aa-header { font-weight: bold; display: flex; justify-content: space-between; }
+        
+        /* Main */
+        #main { flex-grow: 1; padding: 20px; display: flex; flex-direction: column; overflow-y: auto; }
+        
+        /* Inputs */
+        .box { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .dna-input { width: 100%; font-family: monospace; font-size: 1.5rem; letter-spacing: 2px; padding: 10px; border: 2px solid #ddd; text-transform: uppercase; }
+        
+        /* Visualisierung */
+        .chem-window { 
+            width: 100%; 
+            height: 600px; /* Quadratisches Fenster */
+            overflow: auto; /* Scrollbalken wenn nötig */
+            border: 1px solid #ccc; 
+            background: white; 
             position: relative;
         }
         
-        #chemCanvas {
-            display: block;
-            margin: 20px; 
+        #chemCanvas { display: block; } /* Größe wird via JS gesetzt */
+
+        /* Protokoll Fenster für Fehler */
+        #debugLog {
+            position: fixed; top: 0; right: 0; width: 300px; height: 100px; 
+            background: rgba(0,0,0,0.8); color: lime; font-family: monospace; 
+            font-size: 10px; padding: 10px; overflow-y: auto; z-index: 9999;
+            pointer-events: none; opacity: 0.8;
         }
 
-        /* Output Zeilen */
-        .seq-row {
-            display: flex;
-            align-items: center;
-            margin-top: 10px;
-            font-family: 'Courier New', monospace;
-            white-space: nowrap;
-            overflow-x: auto;
-            padding-bottom: 10px;
-        }
-        .seq-label { width: 100px; font-weight: bold; color: #555; flex-shrink: 0; }
-        .seq-content { font-size: 1.1rem; color: var(--primary-color); }
-        
-        .code-box {
-            background: #eee;
-            padding: 5px 10px;
-            border-radius: 4px;
-            user-select: all;
-        }
-        
-        /* Buttons */
-        .action-area {
-            margin-top: 20px;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            align-items: center;
-            border-top: 1px solid #eee;
-            padding-top: 15px;
-        }
-        .btn {
-            background: var(--accent-color);
-            color: white;
-            padding: 8px 16px;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .btn:hover { background: #2980b9; }
-        .btn-green { background: #27ae60; }
-        .btn-green:hover { background: #219150; }
-        .btn-purple { background: #8e44ad; }
-        .btn-purple:hover { background: #732d91; }
-
+        /* Hilfsklassen */
+        .row { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+        .code { font-family: monospace; background: #eee; padding: 2px 5px; }
+        .btn { padding: 8px 15px; background: var(--accent); color: white; border: none; cursor: pointer; border-radius: 4px; text-decoration: none;}
+        .btn:hover { opacity: 0.9; }
     </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/smiles-drawer@2.0.1/dist/smiles-drawer.min.js" 
+            onload="log('Bibliothek geladen via jsDelivr')" 
+            onerror="log('FEHLER: jsDelivr blockiert? Versuche unpkg...'); loadBackupLib()">
+    </script>
 </head>
 <body>
 
+    <div id="debugLog">System Start...<br></div>
+
     <div id="sidebar">
-        <h2>Aminosäuren</h2>
+        <h3>Aminosäuren</h3>
         <div id="aa-list">Lade...</div>
     </div>
 
     <div id="main">
-        <div class="input-section">
-            <div id="sysStatus">Initialisiere...</div>
-            <h3>Genetischer Code (DNA)</h3>
-            <input type="text" id="dnaInput" class="dna-input" placeholder="ACG TCC ..." spellcheck="false" autocomplete="off">
-            <div style="font-size: 0.9rem; color: #7f8c8d; margin-top: 5px;">
-                Gib Tripletts ein (A, C, G, T). Leertaste wird automatisch gesetzt.
+        <div class="box">
+            <h3>Genetischer Code</h3>
+            <input type="text" id="dnaInput" class="dna-input" placeholder="ACG TCC ..." autocomplete="off">
+            <div style="font-size:0.8rem; color:#666; margin-top:5px">
+                Eingabe: A, C, G, T.
             </div>
-            <div id="statusMsg" style="height: 20px; color: #e74c3c; font-weight: bold; margin-top: 5px;"></div>
         </div>
 
-        <div class="vis-section">
-            <h3>Polypeptid-Kette</h3>
+        <div class="box" style="flex-grow: 1; display: flex; flex-direction: column;">
+            <h3>Proteinstruktur</h3>
             
-            <div class="chem-scroll-container">
+            <div class="chem-window" id="chemWindow">
                 <canvas id="chemCanvas"></canvas>
             </div>
 
-            <div class="seq-row">
-                <span class="seq-label">3-Letter:</span>
-                <span id="seq3" class="seq-content">-</span>
-            </div>
-            <div class="seq-row">
-                <span class="seq-label">FASTA:</span>
-                <span id="seq1" class="seq-content code-box">-</span>
-            </div>
-            <div class="seq-row">
-                <span class="seq-label">SMILES:</span>
-                <span id="seqSmiles" class="seq-content code-box" style="font-size: 0.8rem; overflow:hidden; text-overflow:ellipsis;">-</span>
-            </div>
+            <div class="row"><b>3-Letter:</b> <span id="out3">-</span></div>
+            <div class="row"><b>FASTA:</b> <span id="out1" class="code">-</span></div>
+            <div class="row"><b>SMILES:</b> <span id="outSmiles" class="code" style="font-size:10px; max-width: 500px; overflow:hidden;">-</span></div>
 
-            <div class="action-area">
-                <button class="btn btn-green" id="btnCopyFasta">FASTA kopieren</button>
-                <button class="btn btn-green" id="btnCopySmiles">SMILES kopieren</button>
-                <button class="btn btn-purple" id="btnCopyImg" title="Kopiert Bild in Zwischenablage">📷 Bild kopieren</button>
+            <div class="row" style="margin-top: 15px; flex-wrap: wrap;">
+                <button class="btn" onclick="copyToClip('out1')">FASTA kopieren</button>
+                <button class="btn" onclick="copyToClip('outSmiles')">SMILES kopieren</button>
+                <button class="btn" onclick="copyImage()">📷 Bild kopieren</button>
                 <div style="flex-grow:1"></div>
-                <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn">
-                    ColabFold Notebook ↗
-                </a>
+                <button class="btn" style="background: #95a5a6;" onclick="init()">🔄 Reset / Neustart</button>
             </div>
         </div>
     </div>
 
 <script>
-// Hauptprogramm startet erst wenn Seite geladen ist
-window.onload = function() {
-    
-    // --- 1. SETUP & DATEN ---
-    const sysStatus = document.getElementById('sysStatus');
-    
-    // Check ob Bibliothek da ist
-    if (typeof SmilesDrawer === 'undefined') {
-        sysStatus.innerText = "Fehler: SmilesDrawer Lib nicht geladen!";
-        sysStatus.style.color = "red";
-        return;
-    } else {
-        sysStatus.innerText = "System: Bereit";
-        sysStatus.style.color = "green";
+    // --- DEBUG HELPER ---
+    function log(msg) {
+        const d = document.getElementById('debugLog');
+        if(d) d.innerHTML += msg + "<br>";
+        console.log(msg);
     }
 
+    function loadBackupLib() {
+        const script = document.createElement('script');
+        script.src = "https://unpkg.com/smiles-drawer@2.0.1/dist/smiles-drawer.min.js";
+        script.onload = () => log("Bibliothek geladen via unpkg");
+        script.onerror = () => log("KRITISCHER FEHLER: Alle Bibliotheken blockiert!");
+        document.head.appendChild(script);
+    }
+
+    // --- DATEN ---
     const aaData = {
-        'A': { name: 'Alanin', code3: 'Ala', codons: ['GCT','GCC','GCA','GCG'], smiles: 'C' },
-        'R': { name: 'Arginin', code3: 'Arg', codons: ['CGT','CGC','CGA','CGG','AGA','AGG'], smiles: 'CCCNC(=N)N' },
-        'N': { name: 'Asparagin', code3: 'Asn', codons: ['AAT','AAC'], smiles: 'CC(=O)N' },
-        'D': { name: 'Asparaginsäure', code3: 'Asp', codons: ['GAT','GAC'], smiles: 'CC(=O)O' },
-        'C': { name: 'Cystein', code3: 'Cys', codons: ['TGT','TGC'], smiles: 'CS' },
-        'Q': { name: 'Glutamin', code3: 'Gln', codons: ['CAA','CAG'], smiles: 'CCC(=O)N' },
-        'E': { name: 'Glutaminsäure', code3: 'Glu', codons: ['GAA','GAG'], smiles: 'CCC(=O)O' },
-        'G': { name: 'Glycin', code3: 'Gly', codons: ['GGT','GGC','GGA','GGG'], smiles: '' },
-        'H': { name: 'Histidin', code3: 'His', codons: ['CAT','CAC'], smiles: 'CC1=CN=CN1' },
-        'I': { name: 'Isoleucin', code3: 'Ile', codons: ['ATT','ATC','ATA'], smiles: 'C(C)CC' },
-        'L': { name: 'Leucin', code3: 'Leu', codons: ['TTA','TTG','CTT','CTC','CTA','CTG'], smiles: 'CC(C)C' },
-        'K': { name: 'Lysin', code3: 'Lys', codons: ['AAA','AAG'], smiles: 'CCCCN' },
-        'M': { name: 'Methionin', code3: 'Met', codons: ['ATG'], smiles: 'CCSC' },
-        'F': { name: 'Phenylalanin', code3: 'Phe', codons: ['TTT','TTC'], smiles: 'CC1=CC=CC=C1' },
-        'P': { name: 'Prolin', code3: 'Pro', codons: ['CCT','CCC','CCA','CCG'], smiles: 'special' },
-        'S': { name: 'Serin', code3: 'Ser', codons: ['TCT','TCC','TCA','TCG','AGT','AGC'], smiles: 'CO' },
-        'T': { name: 'Threonin', code3: 'Thr', codons: ['ACT','ACC','ACA','ACG'], smiles: 'C(O)C' },
-        'W': { name: 'Tryptophan', code3: 'Trp', codons: ['TGG'], smiles: 'CC1=CNC2=CC=CC=C12' },
-        'Y': { name: 'Tyrosin', code3: 'Tyr', codons: ['TAT','TAC'], smiles: 'CC1=CC=C(O)C=C1' },
-        'V': { name: 'Valin', code3: 'Val', codons: ['GTT','GTC','GTA','GTG'], smiles: 'C(C)C' },
-        'STOP': { name: 'STOP', code3: '***', codons: ['TAA','TAG','TGA'], smiles: null }
+        'A': {n:'Ala', c:['GCT','GCC','GCA','GCG'], s:'C'},
+        'R': {n:'Arg', c:['CGT','CGC','CGA','CGG','AGA','AGG'], s:'CCCNC(=N)N'},
+        'N': {n:'Asn', c:['AAT','AAC'], s:'CC(=O)N'},
+        'D': {n:'Asp', c:['GAT','GAC'], s:'CC(=O)O'},
+        'C': {n:'Cys', c:['TGT','TGC'], s:'CS'},
+        'Q': {n:'Gln', c:['CAA','CAG'], s:'CCC(=O)N'},
+        'E': {n:'Glu', c:['GAA','GAG'], s:'CCC(=O)O'},
+        'G': {n:'Gly', c:['GGT','GGC','GGA','GGG'], s:''},
+        'H': {n:'His', c:['CAT','CAC'], s:'CC1=CN=CN1'},
+        'I': {n:'Ile', c:['ATT','ATC','ATA'], s:'C(C)CC'},
+        'L': {n:'Leu', c:['TTA','TTG','CTT','CTC','CTA','CTG'], s:'CC(C)C'},
+        'K': {n:'Lys', c:['AAA','AAG'], s:'CCCCN'},
+        'M': {n:'Met', c:['ATG'], s:'CCSC'},
+        'F': {n:'Phe', c:['TTT','TTC'], s:'CC1=CC=CC=C1'},
+        'P': {n:'Pro', c:['CCT','CCC','CCA','CCG'], s:'special'},
+        'S': {n:'Ser', c:['TCT','TCC','TCA','TCG','AGT','AGC'], s:'CO'},
+        'T': {n:'Thr', c:['ACT','ACC','ACA','ACG'], s:'C(O)C'},
+        'W': {n:'Trp', c:['TGG'], s:'CC1=CNC2=CC=CC=C12'},
+        'Y': {n:'Tyr', c:['TAT','TAC'], s:'CC1=CC=C(O)C=C1'},
+        'V': {n:'Val', c:['GTT','GTC','GTA','GTG'], s:'C(C)C'},
+        'STOP': {n:'STOP', c:['TAA','TAG','TGA'], s:null}
     };
 
     const codonTable = {};
-    for (let aa in aaData) {
-        aaData[aa].codons.forEach(codon => { codonTable[codon] = aa; });
+    for (let k in aaData) { aaData[k].c.forEach(cod => codonTable[cod] = k); }
+
+    // --- MAIN LOGIK ---
+    let drawer = null;
+
+    function init() {
+        log("Initialisiere...");
+        
+        // Sidebar füllen
+        const sb = document.getElementById('aa-list');
+        sb.innerHTML = "";
+        Object.keys(aaData).sort().forEach(k => {
+            if(k === 'STOP') return;
+            sb.innerHTML += `<div class="aa-card"><div class="aa-header"><span>${aaData[k].n}</span><span>${k}</span></div><div style="font-size:0.8em; color:#666">${aaData[k].c.join(', ')}</div></div>`;
+        });
+
+        // Event Listener
+        const inp = document.getElementById('dnaInput');
+        inp.value = ""; // Reset
+        inp.oninput = handleInput;
+        
+        // Initialer Canvas Reset
+        const cvs = document.getElementById('chemCanvas');
+        cvs.width = 800; cvs.height = 600;
+        const ctx = cvs.getContext('2d');
+        ctx.font = "20px sans-serif";
+        ctx.fillStyle = "#ccc";
+        ctx.fillText("System bereit. Bitte DNA eingeben.", 50, 300);
+        log("GUI bereit.");
     }
 
-    // --- 2. GUI ELEMENTE ---
-    const sidebar = document.getElementById('aa-list');
-    const dnaInput = document.getElementById('dnaInput');
-    const statusMsg = document.getElementById('statusMsg');
-    const chemCanvas = document.getElementById('chemCanvas');
-    
-    // Output Felder
-    const seq3 = document.getElementById('seq3');
-    const seq1 = document.getElementById('seq1');
-    const seqSmiles = document.getElementById('seqSmiles');
-
-    // Sidebar befüllen
-    sidebar.innerHTML = '';
-    Object.keys(aaData).sort().forEach(key => {
-        if(key === 'STOP') return;
-        const data = aaData[key];
-        const card = document.createElement('div');
-        card.className = 'aa-card';
-        card.innerHTML = `
-            <div class="aa-header"><span>${data.name}</span><span>${key} / ${data.code3}</span></div>
-            <div class="aa-codons">${data.codons.join(', ')}</div>
-        `;
-        sidebar.appendChild(card);
-    });
-
-    // --- 3. LOGIK ---
-
-    dnaInput.addEventListener('input', (e) => {
+    function handleInput(e) {
         let raw = e.target.value.toUpperCase().replace(/[^ACGT]/g, '');
-        let formatted = '';
-        for (let i = 0; i < raw.length; i++) {
-            if (i > 0 && i % 3 === 0) formatted += ' ';
-            formatted += raw[i];
-        }
-        if (dnaInput.value !== formatted) dnaInput.value = formatted;
-        
-        translateAndDraw(raw);
-    });
+        // Formatierung
+        let fmt = raw.replace(/(.{3})/g, '$1 ').trim();
+        if(e.target.value !== fmt) e.target.value = fmt;
 
-    // Buttons
-    document.getElementById('btnCopyFasta').onclick = () => copyText(seq1.innerText, "FASTA");
-    document.getElementById('btnCopySmiles').onclick = () => copyText(seqSmiles.innerText, "SMILES");
-    
-    document.getElementById('btnCopyImg').onclick = function() {
-        chemCanvas.toBlob(function(blob) {
-            try {
-                const item = new ClipboardItem({ "image/png": blob });
-                navigator.clipboard.write([item]);
-                alert("Bild kopiert!");
-            } catch (err) {
-                alert("Browser-Sicherheit verbietet Bild-Kopie bei lokaler Datei. Bitte Screenshot nutzen.");
-            }
+        processDNA(raw);
+    }
+
+    function processDNA(raw) {
+        const triplets = raw.match(/.{1,3}/g) || [];
+        let seq = [];
+        let seq3 = [];
+
+        for(let t of triplets) {
+            if(t.length < 3) continue;
+            let aa = codonTable[t];
+            if(!aa) continue; // Fehler ignorieren oder rot markieren
+            if(aa === 'STOP') break;
+            seq.push(aa);
+            seq3.push(aaData[aa].n);
+        }
+
+        // GUI Updates
+        document.getElementById('out3').innerText = seq3.join('-');
+        document.getElementById('out1').innerText = seq.join('');
+        
+        if(seq.length > 0) {
+            let smiles = buildSmiles(seq);
+            document.getElementById('outSmiles').innerText = smiles;
+            draw(smiles, seq.length);
+        }
+    }
+
+    function buildSmiles(seq) {
+        let s = "";
+        seq.forEach(aa => {
+            if(aa === 'P') s += "N1[C@@H](CCC1)C(=O)";
+            else if(aa === 'G') s += "NCC(=O)";
+            else s += `N[C@@H](${aaData[aa].s})C(=O)`;
         });
-    };
-
-    function copyText(txt, name) {
-        if(!txt || txt === '-') return;
-        navigator.clipboard.writeText(txt).then(() => alert(name + " kopiert!"));
+        return s + "O";
     }
 
-    function translateAndDraw(dnaSequence) {
-        const triplets = dnaSequence.match(/.{1,3}/g) || [];
-        let aaSequence = [];
-        let aa3List = [];
-        
-        statusMsg.innerText = "";
-        dnaInput.classList.remove('error');
-
-        for (let t of triplets) {
-            if (t.length < 3) continue;
-            const aaCode = codonTable[t];
-            if (!aaCode) {
-                statusMsg.innerText = `Unbekannt: ${t}`;
-                dnaInput.classList.add('error');
-                continue;
-            }
-            if (aaCode === 'STOP') break;
-            aaSequence.push(aaCode);
-            aa3List.push(aaData[aaCode].code3);
+    function draw(smiles, count) {
+        if(typeof SmilesDrawer === 'undefined') {
+            log("FEHLER: Kann nicht zeichnen, Lib fehlt!");
+            return;
         }
 
-        // Text Updates
-        seq3.innerText = aa3List.join(' - ');
-        seq1.innerText = aaSequence.join('');
+        const cvs = document.getElementById('chemCanvas');
         
-        if (aaSequence.length > 0) {
-            try {
-                const smiles = generatePeptideSmiles(aaSequence);
-                seqSmiles.innerText = smiles;
-                drawOnCanvas(smiles, aaSequence.length);
-            } catch (e) {
-                console.error(e);
-                statusMsg.innerText = "Fehler beim Zeichnen.";
-            }
-        } else {
-            seqSmiles.innerText = "-";
-            clearCanvas();
-        }
-    }
+        // GRÖSSENBERECHNUNG (Verhindert das "Schrumpfen")
+        // Wir machen den Canvas intern riesig.
+        // Breite: Mindestens 800px, sonst 100px pro Aminosäure
+        let w = Math.max(800, count * 100);
+        // Höhe: Fix auf 2000px. Das CSS-Fenster zeigt nur 600px davon mit Scrollbar.
+        let h = 2000;
 
-    function generatePeptideSmiles(sequence) {
-        let smiles = "";
-        sequence.forEach((aa) => {
-            let fragment = "";
-            if (aa === 'P') fragment = "N1[C@@H](CCC1)C(=O)";
-            else if (aa === 'G') fragment = "NCC(=O)";
-            else fragment = `N[C@@H](${aaData[aa].smiles})C(=O)`;
-            smiles += fragment;
-        });
-        smiles += "O";
-        return smiles;
-    }
+        // WICHTIG: Attribute setzen
+        cvs.width = w;
+        cvs.height = h;
 
-    function drawOnCanvas(smiles, count) {
-        // --- GRÖSSENBERECHNUNG (Anti-Zoom) ---
-        // Breite: Genug Platz pro AS (80px)
-        let w = Math.max(800, count * 80);
-        // Höhe: Riesig (2500px), damit nichts gestaucht wird
-        // Das Sichtfenster ist per CSS auf 600px begrenzt (Scrollbar)
-        let h = 2500; 
-
-        chemCanvas.width = w;
-        chemCanvas.height = h;
-
-        let options = {
-            bondThickness: 1.0,
-            bondLength: 22,    // Optimierte Länge
-            shortBondLength: 0.85,
-            fontSize: 10,       
-            backgroundColor: 'transparent',
-            padding: 40,
+        // Drawer Optionen
+        let opts = {
             width: w,
             height: h,
-            experimentalSSSR: true
+            bondThickness: 1.0,
+            bondLength: 22,   
+            shortBondLength: 0.85,
+            fontSize: 11,
+            padding: 50,
+            experimentalSSSR: true, // Hilft bei Ringen
+            debug: false
         };
 
-        let drawer = new SmilesDrawer.Drawer(options);
-        
+        // Neu instanziieren für sauberen State
+        drawer = new SmilesDrawer.Drawer(opts);
+
         SmilesDrawer.parse(smiles, function(tree) {
+            log("Zeichne Molekül...");
             drawer.draw(tree, 'chemCanvas', 'light', false);
+        }, function(err) {
+            log("Parse Fehler: " + err);
         });
     }
 
-    function clearCanvas() {
-        const ctx = chemCanvas.getContext('2d');
-        chemCanvas.width = 800;
-        chemCanvas.height = 600;
-        ctx.font = "16px Arial";
-        ctx.fillStyle = "#aaa";
-        ctx.clearRect(0,0,800,600);
-        ctx.fillText("Warte auf Eingabe...", 30, 300);
+    // Helpers
+    window.copyToClip = (id) => {
+        let t = document.getElementById(id).innerText;
+        navigator.clipboard.writeText(t).then(()=>alert("Kopiert!"));
+    }
+    window.copyImage = () => {
+        document.getElementById('chemCanvas').toBlob(blob => {
+            try {
+                navigator.clipboard.write([new ClipboardItem({"image/png":blob})]);
+                alert("Bild kopiert!");
+            } catch(e) { alert("Fehler: Browser blockiert Bild-Kopie."); }
+        });
     }
 
-    // Start
-    clearCanvas();
-};
+    // Start nach dem Laden
+    window.onload = init;
+
 </script>
 </body>
 </html>
