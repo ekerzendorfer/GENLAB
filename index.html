@@ -94,27 +94,26 @@
             overflow: hidden; 
         }
 
-        /* NEU: Scrollable Container (Das Fenster) 
-           Dies ermöglicht das "Herumfahren" auf dem großen Molekül
-        */
+        /* Scrollable Container (Das Fenster) */
         .chem-scroll-container {
-            overflow: auto; /* Erlaubt Scrollen horizontal UND vertikal */
+            overflow: auto; 
             width: 100%;
-            height: 500px; /* Feste Höhe für das Sichtfenster */
+            height: 350px; /* Reduzierte Höhe für besseren Fokus */
             border: 1px solid #f0f0f0;
             border-radius: 5px;
             margin-bottom: 15px;
             background: white;
-            /* Schicke Scrollbars */
             scrollbar-width: thin;
             scrollbar-color: var(--accent-color) #f0f0f0;
             position: relative;
+            display: flex;
+            align-items: center; /* Zentriert kleine Moleküle vertikal */
         }
         
-        /* The Canvas (Die riesige Leinwand) */
+        /* The Canvas */
         #chemCanvas {
             display: block;
-            /* Größe wird per JS gesetzt */
+            margin: 0; /* Links ausgerichtet lassen */
         }
 
         /* Sequences */
@@ -243,15 +242,15 @@
     const chemCanvas = document.getElementById('chemCanvas');
     const chemContainer = document.getElementById('chemContainer');
     
-    // SmilesDrawer Optionen (Optimiert für Lesbarkeit)
-    const drawerOptions = {
-        bondThickness: 1.0, 
-        scale: 1.0,
-        bondLength: 30, // Längere Bindungen
+    // START-Optionen (Platzhalter)
+    let drawerOptions = {
+        bondThickness: 0.8,
+        scale: 1.0, 
+        bondLength: 15,    // Zurück zu Standard (nicht 30!)
         shortBondLength: 0.85,
-        fontSize: 14, // Größere Schrift
+        fontSize: 7,       // Sehr kleine Schrift, damit sich Text nicht überlappt
         backgroundColor: 'transparent',
-        padding: 30, 
+        padding: 10,       // Weniger Padding
         experimentalSSSR: true
     };
     
@@ -320,12 +319,11 @@
         } else {
             const ctx = chemCanvas.getContext('2d');
             ctx.clearRect(0, 0, chemCanvas.width, chemCanvas.height);
-            // Reset auf Startzustand
-            chemCanvas.width = 1000;
-            chemCanvas.height = 500;
-            ctx.font = "20px Arial";
+            chemCanvas.width = 600; 
+            chemCanvas.height = 300;
+            ctx.font = "16px Arial";
             ctx.fillStyle = "#ccc";
-            ctx.fillText("Warte auf DNA-Eingabe...", 20, 130);
+            ctx.fillText("Warte auf DNA-Eingabe...", 20, 150);
         }
     }
 
@@ -348,44 +346,10 @@
     }
 
     function drawStructure(smiles, residueCount) {
-        // Berechne riesige Dimensionen, damit nichts gestaucht wird
-        const newWidth = Math.max(1000, residueCount * 200);
-        const newHeight = 1200; // Genug Platz nach unten für Faltungen
-
-        chemCanvas.width = newWidth;
-        chemCanvas.height = newHeight;
-        
-        // Update Drawer mit neuen Dimensionen
-        const currentOptions = { 
-            ...drawerOptions, 
-            width: newWidth, 
-            height: newHeight 
-        };
-        
-        smilesDrawer = new SmilesDrawer.Drawer(currentOptions);
-
-        SmilesDrawer.parse(smiles, function(tree) {
-            smilesDrawer.draw(tree, 'chemCanvas', 'light', false);
-        }, function(err) {
-            console.log(err);
-        });
-    }
-
-    function copyFasta() {
-        const text = document.getElementById('seq1').innerText;
-        navigator.clipboard.writeText(text).then(() => {
-            alert("FASTA Sequenz kopiert!");
-        });
-    }
-
-    // Initiale Canvas-Größe
-    const ctx = chemCanvas.getContext('2d');
-    chemCanvas.width = 1000;
-    chemCanvas.height = 500;
-    ctx.font = "20px Arial";
-    ctx.fillStyle = "#ccc";
-    ctx.fillText("Warte auf DNA-Eingabe...", 20, 130);
-
-</script>
-</body>
-</html>
+        // --- SMART SIZING ---
+        // Wir berechnen die Breite basierend auf der Anzahl der Residues.
+        // Faktor 40 ist ein guter Mittelwert für die Breite einer AS bei bondLength 15.
+        // +200 px Puffer für die Enden.
+        // Das verhindert, dass kurze Moleküle explodieren (Zoom) oder lange Moleküle zu winzig werden.
+        const widthPerResidue = 45;
+        const newWidth = Math.max(500, residueCount * widthPerResidue + 100);
