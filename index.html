@@ -47,7 +47,6 @@
         .aa-card:hover { transform: scale(1.02); border-color: var(--accent-color); }
         .aa-header { display: flex; justify-content: space-between; align-items: baseline; font-weight: bold; }
         .aa-codons { font-size: 0.8rem; color: #666; margin-top: 5px; word-break: break-all;}
-        .aa-structure-preview { height: 60px; width: 100%; object-fit: contain; opacity: 0.7; }
 
         /* --- MAIN CONTENT --- */
         #main {
@@ -92,27 +91,30 @@
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            overflow: hidden; /* Contains the scrollable children */
+            overflow: hidden; 
         }
 
-        /* Scrollable Container for Chemistry */
+        /* NEU: Scrollable Container (Das Fenster) 
+           Dies ermöglicht das "Herumfahren" auf dem großen Molekül
+        */
         .chem-scroll-container {
-            overflow-x: auto;
-            overflow-y: hidden;
+            overflow: auto; /* Erlaubt Scrollen horizontal UND vertikal */
             width: 100%;
+            height: 500px; /* Feste Höhe für das Sichtfenster */
             border: 1px solid #f0f0f0;
             border-radius: 5px;
             margin-bottom: 15px;
             background: white;
-            /* Custom Scrollbar */
+            /* Schicke Scrollbars */
             scrollbar-width: thin;
             scrollbar-color: var(--accent-color) #f0f0f0;
+            position: relative;
         }
         
-        /* The canvas needs to be large enough to hold the chain */
+        /* The Canvas (Die riesige Leinwand) */
         #chemCanvas {
-            height: 250px; 
-            /* Width wird per JS gesetzt */
+            display: block;
+            /* Größe wird per JS gesetzt */
         }
 
         /* Sequences */
@@ -191,7 +193,7 @@
 
             <div class="action-area">
                 <button class="btn btn-copy" onclick="copyFasta()">FASTA kopieren</button>
-                <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/ColabFold_batch.ipynb" target="_blank" class="btn">
+                <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn">
                     ColabFold Notebook öffnen ↗
                 </a>
             </div>
@@ -203,8 +205,6 @@
 
 <script>
     // --- DATENBASIS ---
-    // Genetischer Code und Aminosäure-Daten (SMILES Fragmente)
-    // Wir definieren hier nur die Seitenketten (R). Das Backbone bauen wir im Loop.
     
     const aaData = {
         'A': { name: 'Alanin', code3: 'Ala', codons: ['GCT','GCC','GCA','GCG'], smiles: 'C' },
@@ -214,14 +214,14 @@
         'C': { name: 'Cystein', code3: 'Cys', codons: ['TGT','TGC'], smiles: 'CS' },
         'Q': { name: 'Glutamin', code3: 'Gln', codons: ['CAA','CAG'], smiles: 'CCC(=O)N' },
         'E': { name: 'Glutaminsäure', code3: 'Glu', codons: ['GAA','GAG'], smiles: 'CCC(=O)O' },
-        'G': { name: 'Glycin', code3: 'Gly', codons: ['GGT','GGC','GGA','GGG'], smiles: '' }, // Kein R
+        'G': { name: 'Glycin', code3: 'Gly', codons: ['GGT','GGC','GGA','GGG'], smiles: '' }, 
         'H': { name: 'Histidin', code3: 'His', codons: ['CAT','CAC'], smiles: 'CC1=CN=CN1' },
-        'I': { name: 'Isoleucin', code3: 'Ile', codons: ['ATT','ATC','ATA'], smiles: 'C(C)CC' }, // 
+        'I': { name: 'Isoleucin', code3: 'Ile', codons: ['ATT','ATC','ATA'], smiles: 'C(C)CC' }, 
         'L': { name: 'Leucin', code3: 'Leu', codons: ['TTA','TTG','CTT','CTC','CTA','CTG'], smiles: 'CC(C)C' },
         'K': { name: 'Lysin', code3: 'Lys', codons: ['AAA','AAG'], smiles: 'CCCCN' },
         'M': { name: 'Methionin', code3: 'Met', codons: ['ATG'], smiles: 'CCSC' },
         'F': { name: 'Phenylalanin', code3: 'Phe', codons: ['TTT','TTC'], smiles: 'CC1=CC=CC=C1' },
-        'P': { name: 'Prolin', code3: 'Pro', codons: ['CCT','CCC','CCA','CCG'], smiles: 'special' }, // Prolin ist speziell (Ring im Backbone)
+        'P': { name: 'Prolin', code3: 'Pro', codons: ['CCT','CCC','CCA','CCG'], smiles: 'special' }, 
         'S': { name: 'Serin', code3: 'Ser', codons: ['TCT','TCC','TCA','TCG','AGT','AGC'], smiles: 'CO' },
         'T': { name: 'Threonin', code3: 'Thr', codons: ['ACT','ACC','ACA','ACG'], smiles: 'C(O)C' },
         'W': { name: 'Tryptophan', code3: 'Trp', codons: ['TGG'], smiles: 'CC1=CNC2=CC=CC=C12' },
@@ -230,7 +230,6 @@
         'STOP': { name: 'STOP', code3: '***', codons: ['TAA','TAG','TGA'], smiles: null }
     };
 
-    // Mapping Codon -> 1-Letter Code
     const codonTable = {};
     for (let aa in aaData) {
         aaData[aa].codons.forEach(codon => {
@@ -244,18 +243,16 @@
     const chemCanvas = document.getElementById('chemCanvas');
     const chemContainer = document.getElementById('chemContainer');
     
-    // SmilesDrawer Optionen (ANGEPASST FÜR MEHR PLATZ)
+    // SmilesDrawer Optionen (Optimiert für Lesbarkeit)
     const drawerOptions = {
-        width: 1000, // Platzhalter
-        height: 450, // <--- ÄNDERUNG: Viel mehr Höhe (war 250)
-        bondThickness: 0.8, // <--- ÄNDERUNG: Etwas dünnere Linien für mehr Klarheit
+        bondThickness: 1.0, 
         scale: 1.0,
-        bondLength: 35, // <--- ÄNDERUNG: Bindungen mehr als verdoppelt (war 15)! Das zieht es auseinander.
+        bondLength: 30, // Längere Bindungen
         shortBondLength: 0.85,
-        fontSize: 12, // <--- ÄNDERUNG: Schrift etwas größer
+        fontSize: 14, // Größere Schrift
         backgroundColor: 'transparent',
-        padding: 20, // <--- ÄNDERUNG: Mehr Abstand zum Rand
-        experimentalSSSR: true // Hilft manchmal bei der Ring-Darstellung
+        padding: 30, 
+        experimentalSSSR: true
     };
     
     // Globale Instanz
@@ -277,14 +274,6 @@
         `;
         sidebar.appendChild(card);
     });
-
-    // Colab Link Update (Stabilerer Link)
-    const colabBtn = document.querySelector('a[href*="colab.research.google.com"]');
-    if(colabBtn) {
-        // <--- ÄNDERUNG: Neuer, stabilerer Link zum Standard AlphaFold2/ColabFold Notebook
-        colabBtn.href = "https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb";
-    }
-
 
     // --- LOGIK ---
 
@@ -331,7 +320,12 @@
         } else {
             const ctx = chemCanvas.getContext('2d');
             ctx.clearRect(0, 0, chemCanvas.width, chemCanvas.height);
-            chemCanvas.height = 250; // Reset Höhe wenn leer
+            // Reset auf Startzustand
+            chemCanvas.width = 1000;
+            chemCanvas.height = 500;
+            ctx.font = "20px Arial";
+            ctx.fillStyle = "#ccc";
+            ctx.fillText("Warte auf DNA-Eingabe...", 20, 130);
         }
     }
 
@@ -354,19 +348,20 @@
     }
 
     function drawStructure(smiles, residueCount) {
-        // <--- ÄNDERUNG: Breitenberechnung drastisch erhöht
-        // Wir geben jetzt 250px Breite pro Aminosäure statt 120px.
-        const newWidth = Math.max(1000, residueCount * 250);
-        const newHeight = 450; // <--- ÄNDERUNG: Feste, größere Höhe
+        // Berechne riesige Dimensionen, damit nichts gestaucht wird
+        const newWidth = Math.max(1000, residueCount * 200);
+        const newHeight = 1200; // Genug Platz nach unten für Faltungen
 
         chemCanvas.width = newWidth;
         chemCanvas.height = newHeight;
         
-        // Wir müssen dem Drawer die neuen Dimensionen mitteilen
-        const currentOptions = { ...drawerOptions, width: newWidth, height: newHeight };
+        // Update Drawer mit neuen Dimensionen
+        const currentOptions = { 
+            ...drawerOptions, 
+            width: newWidth, 
+            height: newHeight 
+        };
         
-        // <--- WICHTIG: Wir erstellen einen neuen Drawer für jeden neuen Zeichenvorgang,
-        // um sicherzustellen, dass die neuen Optionen übernommen werden.
         smilesDrawer = new SmilesDrawer.Drawer(currentOptions);
 
         SmilesDrawer.parse(smiles, function(tree) {
@@ -383,8 +378,10 @@
         });
     }
 
+    // Initiale Canvas-Größe
     const ctx = chemCanvas.getContext('2d');
-    chemCanvas.height = 250; // Initiale Höhe kleiner lassen
+    chemCanvas.width = 1000;
+    chemCanvas.height = 500;
     ctx.font = "20px Arial";
     ctx.fillStyle = "#ccc";
     ctx.fillText("Warte auf DNA-Eingabe...", 20, 130);
