@@ -34,7 +34,6 @@
         }
 
         h2 { font-size: 1.2rem; color: var(--primary-color); margin-top: 0; }
-        h3 { font-size: 1rem; color: var(--primary-color); margin-bottom: 5px; }
         
         .aa-card {
             border: 1px solid #eee;
@@ -94,11 +93,11 @@
             overflow: hidden; 
         }
 
-        /* Scrollable Container (Das Fenster) */
+        /* Scrollable Container */
         .chem-scroll-container {
             overflow: auto; 
             width: 100%;
-            height: 350px; /* Reduzierte Höhe für besseren Fokus */
+            height: 350px; 
             border: 1px solid #f0f0f0;
             border-radius: 5px;
             margin-bottom: 15px;
@@ -106,14 +105,11 @@
             scrollbar-width: thin;
             scrollbar-color: var(--accent-color) #f0f0f0;
             position: relative;
-            display: flex;
-            align-items: center; /* Zentriert kleine Moleküle vertikal */
         }
         
-        /* The Canvas */
         #chemCanvas {
             display: block;
-            margin: 0; /* Links ausgerichtet lassen */
+            margin: 20px; /* Etwas Abstand */
         }
 
         /* Sequences */
@@ -136,7 +132,7 @@
             user-select: all;
         }
 
-        /* Colab Button */
+        /* Buttons */
         .action-area {
             margin-top: 20px;
             display: flex;
@@ -161,9 +157,8 @@
 <body>
 
     <div id="sidebar">
-        <h2>Aminosäuren Referenz</h2>
-        <div id="aa-list">
-            </div>
+        <h2>Aminosäuren</h2>
+        <div id="aa-list">Lade Daten...</div>
     </div>
 
     <div id="main">
@@ -191,20 +186,19 @@
             </div>
 
             <div class="action-area">
-                <button class="btn btn-copy" onclick="copyFasta()">FASTA kopieren</button>
+                <button class="btn btn-copy" id="btnCopy">FASTA kopieren</button>
                 <a href="https://colab.research.google.com/github/sokrypton/ColabFold/blob/main/AlphaFold2.ipynb" target="_blank" class="btn">
                     ColabFold Notebook öffnen ↗
                 </a>
-            </div>
-            <div class="hint" style="margin-top: 10px;">
-                Tipp: Kopiere den FASTA Code und füge ihn im ColabFold Notebook unter "query_sequence" ein.
             </div>
         </div>
     </div>
 
 <script>
-    // --- DATENBASIS ---
-    
+// Wir warten, bis alles geladen ist, um "leere Seite" Fehler zu vermeiden
+window.addEventListener('load', function() {
+
+    // 1. DATEN DEFINITION (Ohne Kommentare im Objekt, um Syntaxfehler zu vermeiden)
     const aaData = {
         'A': { name: 'Alanin', code3: 'Ala', codons: ['GCT','GCC','GCA','GCG'], smiles: 'C' },
         'R': { name: 'Arginin', code3: 'Arg', codons: ['CGT','CGC','CGA','CGG','AGA','AGG'], smiles: 'CCCNC(=N)N' },
@@ -213,14 +207,14 @@
         'C': { name: 'Cystein', code3: 'Cys', codons: ['TGT','TGC'], smiles: 'CS' },
         'Q': { name: 'Glutamin', code3: 'Gln', codons: ['CAA','CAG'], smiles: 'CCC(=O)N' },
         'E': { name: 'Glutaminsäure', code3: 'Glu', codons: ['GAA','GAG'], smiles: 'CCC(=O)O' },
-        'G': { name: 'Glycin', code3: 'Gly', codons: ['GGT','GGC','GGA','GGG'], smiles: '' }, 
+        'G': { name: 'Glycin', code3: 'Gly', codons: ['GGT','GGC','GGA','GGG'], smiles: '' },
         'H': { name: 'Histidin', code3: 'His', codons: ['CAT','CAC'], smiles: 'CC1=CN=CN1' },
-        'I': { name: 'Isoleucin', code3: 'Ile', codons: ['ATT','ATC','ATA'], smiles: 'C(C)CC' }, 
+        'I': { name: 'Isoleucin', code3: 'Ile', codons: ['ATT','ATC','ATA'], smiles: 'C(C)CC' },
         'L': { name: 'Leucin', code3: 'Leu', codons: ['TTA','TTG','CTT','CTC','CTA','CTG'], smiles: 'CC(C)C' },
         'K': { name: 'Lysin', code3: 'Lys', codons: ['AAA','AAG'], smiles: 'CCCCN' },
         'M': { name: 'Methionin', code3: 'Met', codons: ['ATG'], smiles: 'CCSC' },
         'F': { name: 'Phenylalanin', code3: 'Phe', codons: ['TTT','TTC'], smiles: 'CC1=CC=CC=C1' },
-        'P': { name: 'Prolin', code3: 'Pro', codons: ['CCT','CCC','CCA','CCG'], smiles: 'special' }, 
+        'P': { name: 'Prolin', code3: 'Pro', codons: ['CCT','CCC','CCA','CCG'], smiles: 'special' },
         'S': { name: 'Serin', code3: 'Ser', codons: ['TCT','TCC','TCA','TCG','AGT','AGC'], smiles: 'CO' },
         'T': { name: 'Threonin', code3: 'Thr', codons: ['ACT','ACC','ACA','ACG'], smiles: 'C(O)C' },
         'W': { name: 'Tryptophan', code3: 'Trp', codons: ['TGG'], smiles: 'CC1=CNC2=CC=CC=C12' },
@@ -236,29 +230,10 @@
         });
     }
 
-    // --- INITIALISIERUNG ---
-    const dnaInput = document.getElementById('dnaInput');
-    const statusMsg = document.getElementById('statusMsg');
-    const chemCanvas = document.getElementById('chemCanvas');
-    const chemContainer = document.getElementById('chemContainer');
-    
-    // START-Optionen (Platzhalter)
-    let drawerOptions = {
-        bondThickness: 0.8,
-        scale: 1.0, 
-        bondLength: 15,    // Zurück zu Standard (nicht 30!)
-        shortBondLength: 0.85,
-        fontSize: 7,       // Sehr kleine Schrift, damit sich Text nicht überlappt
-        backgroundColor: 'transparent',
-        padding: 10,       // Weniger Padding
-        experimentalSSSR: true
-    };
-    
-    // Globale Instanz
-    let smilesDrawer = new SmilesDrawer.Drawer(drawerOptions);
-
-    // Sidebar füllen
+    // 2. SIDEBAR FÜLLEN (Passiert sofort)
     const sidebar = document.getElementById('aa-list');
+    sidebar.innerHTML = ''; // "Lade Daten..." entfernen
+    
     Object.keys(aaData).sort().forEach(key => {
         if(key === 'STOP') return;
         const data = aaData[key];
@@ -274,8 +249,15 @@
         sidebar.appendChild(card);
     });
 
-    // --- LOGIK ---
+    // 3. ELEMENTE
+    const dnaInput = document.getElementById('dnaInput');
+    const statusMsg = document.getElementById('statusMsg');
+    const chemCanvas = document.getElementById('chemCanvas');
+    const seq3 = document.getElementById('seq3');
+    const seq1 = document.getElementById('seq1');
+    const btnCopy = document.getElementById('btnCopy');
 
+    // 4. LOGIK
     dnaInput.addEventListener('input', (e) => {
         let raw = e.target.value.toUpperCase().replace(/[^ACGT]/g, '');
         let formatted = '';
@@ -287,6 +269,12 @@
            dnaInput.value = formatted;
         }
         translateAndDraw(raw);
+    });
+
+    btnCopy.addEventListener('click', () => {
+        navigator.clipboard.writeText(seq1.innerText).then(() => {
+            alert("FASTA Sequenz kopiert!");
+        });
     });
 
     function translateAndDraw(dnaSequence) {
@@ -310,26 +298,29 @@
             aa3List.push(aaData[aaCode].code3);
         }
 
-        document.getElementById('seq3').innerText = aa3List.join(' - ');
-        document.getElementById('seq1').innerText = aaSequence.join('');
+        seq3.innerText = aa3List.join(' - ');
+        seq1.innerText = aaSequence.join('');
 
+        // Zeichnen nur wenn Sequenz da ist
         if (aaSequence.length > 0) {
-            const peptideSmiles = generatePeptideSmiles(aaSequence);
-            drawStructure(peptideSmiles, aaSequence.length);
+            try {
+                const peptideSmiles = generatePeptideSmiles(aaSequence);
+                drawStructure(peptideSmiles, aaSequence.length);
+            } catch (e) {
+                console.error("Zeichenfehler:", e);
+                // Fallback falls Bibliothek fehlt
+                const ctx = chemCanvas.getContext('2d');
+                ctx.clearRect(0, 0, chemCanvas.width, chemCanvas.height);
+                ctx.fillText("Fehler beim Zeichnen (Bibliothek lädt noch?)", 10, 50);
+            }
         } else {
-            const ctx = chemCanvas.getContext('2d');
-            ctx.clearRect(0, 0, chemCanvas.width, chemCanvas.height);
-            chemCanvas.width = 600; 
-            chemCanvas.height = 300;
-            ctx.font = "16px Arial";
-            ctx.fillStyle = "#ccc";
-            ctx.fillText("Warte auf DNA-Eingabe...", 20, 150);
+            resetCanvas();
         }
     }
 
     function generatePeptideSmiles(sequence) {
         let smiles = "";
-        sequence.forEach((aa, index) => {
+        sequence.forEach((aa) => {
             let fragment = "";
             if (aa === 'P') {
                 fragment = "N1[C@@H](CCC1)C(=O)";
@@ -346,10 +337,67 @@
     }
 
     function drawStructure(smiles, residueCount) {
-        // --- SMART SIZING ---
-        // Wir berechnen die Breite basierend auf der Anzahl der Residues.
-        // Faktor 40 ist ein guter Mittelwert für die Breite einer AS bei bondLength 15.
-        // +200 px Puffer für die Enden.
-        // Das verhindert, dass kurze Moleküle explodieren (Zoom) oder lange Moleküle zu winzig werden.
-        const widthPerResidue = 45;
-        const newWidth = Math.max(500, residueCount * widthPerResidue + 100);
+        // Prüfen ob Bibliothek da ist
+        if (typeof SmilesDrawer === 'undefined') {
+            console.error("SmilesDrawer nicht geladen");
+            return;
+        }
+
+        // --- INTELLIGENTE GRÖSSENBERECHNUNG ---
+        // Ziel: Verhindern, dass 1-2 AS riesig zoomen.
+        
+        // 1. Wir definieren eine Breite pro Aminosäure
+        const widthPerResidue = 60; 
+        // 2. Wir berechnen die Mindestbreite
+        let calcWidth = Math.max(300, residueCount * widthPerResidue);
+        
+        // TRICK: Wenn wir nur wenige AS haben (weniger als 10), machen wir den Canvas
+        // künstlich BREITER als nötig. SmilesDrawer zentriert das Molekül dann, 
+        // aber weil der Canvas so breit ist, zoomt es nicht so stark rein.
+        if (residueCount < 8) {
+            calcWidth = 800; // Feste Breite für kurze Stücke -> verhindert Riesen-Zoom
+        }
+
+        const calcHeight = 400;
+
+        chemCanvas.width = calcWidth;
+        chemCanvas.height = calcHeight;
+
+        let options = {
+            bondThickness: 0.6,
+            bondLength: 18,    // Mittelweg zwischen Chaos und Lesbarkeit
+            shortBondLength: 0.85,
+            fontSize: 8,       
+            backgroundColor: 'transparent',
+            padding: 20,
+            experimentalSSSR: true,
+            width: calcWidth,
+            height: calcHeight
+        };
+
+        let drawer = new SmilesDrawer.Drawer(options);
+        
+        SmilesDrawer.parse(smiles, function(tree) {
+            drawer.draw(tree, 'chemCanvas', 'light', false);
+        }, function(err) {
+            console.log(err);
+        });
+    }
+
+    function resetCanvas() {
+        const ctx = chemCanvas.getContext('2d');
+        chemCanvas.width = 600;
+        chemCanvas.height = 300;
+        ctx.font = "16px Arial";
+        ctx.fillStyle = "#ccc";
+        ctx.clearRect(0,0,600,300);
+        ctx.fillText("Warte auf DNA-Eingabe...", 20, 150);
+    }
+
+    // Start
+    resetCanvas();
+
+});
+</script>
+</body>
+</html>
